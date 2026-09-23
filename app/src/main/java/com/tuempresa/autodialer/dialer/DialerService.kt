@@ -198,11 +198,11 @@ class DialerService : Service() {
             currentSessionId = sessionId
             Log.d("DialerService", "Iniciando nueva sesión: $sessionId")
             
-            // RN-08: Limpieza profunda al iniciar para evitar el bug de "vuelve a cero"
+            // RN-08: Limpieza profunda al iniciar para evitar contactos atascados en Esperando Resultado o In Progress
             withContext(Dispatchers.IO) {
                 db.callSessionDao().clearAll()
                 DialerEvents.updateSession(null)
-                // Revertir cualquier contacto que haya quedado "En progreso" por un crash anterior
+                dao.sanitizeStuckContacts()
                 dao.revertInProgressToPending(currentBatchId)
             }
 

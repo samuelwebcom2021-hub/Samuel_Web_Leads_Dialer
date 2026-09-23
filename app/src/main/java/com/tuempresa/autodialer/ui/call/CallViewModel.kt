@@ -130,7 +130,18 @@ class CallViewModel(app: Application) : AndroidViewModel(app) {
 
     fun finishSession() {
         val currentSession = session.value ?: return
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
+            val contact = contactDao.getById(currentSession.contactId)
+            if (contact != null && (contact.status == "AWAITING_OUTCOME" || contact.status == "AWAITING_RETRY_TIME" || contact.status == "IN_PROGRESS")) {
+                val hasCapturedData = !currentSession.whatsappNumber.isNullOrBlank() || !currentSession.alternateNumber.isNullOrBlank()
+                val finalStatus = if (hasCapturedData) com.tuempresa.autodialer.data.ContactStatus.INTERESTED.name else com.tuempresa.autodialer.data.ContactStatus.PENDING.name
+                contactDao.update(contact.copy(
+                    status = finalStatus,
+                    ownerPhone = currentSession.alternateNumber,
+                    whatsappNumber = currentSession.whatsappNumber,
+                    notes = currentSession.notes
+                ).markDirty())
+            }
             DialerEvents.emitResolution(currentSession.contactId)
             DialerEvents.updateSession(null)
         }

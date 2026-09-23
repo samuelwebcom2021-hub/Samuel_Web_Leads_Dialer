@@ -60,6 +60,9 @@ interface ContactDao {
     @Query("UPDATE contacts SET status = 'PENDING' WHERE importBatchId = :batchId AND status = 'IN_PROGRESS'")
     suspend fun revertInProgressToPending(batchId: Long)
 
+    @Query("UPDATE contacts SET status = CASE WHEN (ownerPhone IS NOT NULL AND ownerPhone != '') OR (whatsappNumber IS NOT NULL AND whatsappNumber != '') THEN 'INTERESTED' ELSE 'PENDING' END WHERE status IN ('AWAITING_OUTCOME', 'AWAITING_RETRY_TIME', 'IN_PROGRESS')")
+    suspend fun sanitizeStuckContacts()
+
     @Query("DELETE FROM contacts WHERE importBatchId = :batchId")
     suspend fun deleteBatch(batchId: Long)
 
