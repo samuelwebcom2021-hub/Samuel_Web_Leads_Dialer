@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bold Minimal: Negro + Dorado Premium (#D4A947) -->
+    <color name="colorPrimary">#D4A947</color>       <!-- Dorado: botones y acentos principales -->
+    <color name="colorOnPrimary">#111318</color>     <!-- Texto oscuro sobre botones dorado -->
+    <color name="colorPrimaryDark">#000000</color>
+    <color name="colorAccent">#D4A947</color>
+
+    <color name="colorBackground">#000000</color>    <!-- Fondo negro puro para máxima elegancia -->
+    <color name="colorSurface">#111318</color>       <!-- Tarjetas ligeramente más claras -->
+    <color name="colorSurfaceVariant">#1D2027</color><!-- Campos de texto, chips -->
+    <color name="colorOnSurface">#FFFFFF</color>
+    <color name="colorOnSurfaceMuted">#9AA0AB</color>
+    <color name="colorOutline">#3A3F49</color>
+    <color name="colorDanger">#EF5350</color>
+    <color name="colorSuccess">#4CAF50</color>
+
+    <color name="goldAccent">#D4A947</color>         <!-- dorado premium extraído de la marca -->
+    <color name="goldLight">#F7D98B</color>          <!-- para brillos y reflejos -->
+    <color name="goldDark">#A67C00</color>           <!-- para sombras y profundidad -->
+    <color name="goldGlow">#80D4A947</color>         <!-- dorado con 50% alfa para efectos de resplandor -->
+
+    <color name="ic_launcher_background">#16181D</color> <!-- fondo oscuro consistente con la marca -->
+</resources>

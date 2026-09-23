@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Samuel Web Leads Dialer</string>
+    <string name="import_excel">Analizar Excel</string>
+    <string name="start_calling">Iniciar llamadas</string>
+    <string name="stop_calling">Detener</string>
+    <string name="no_contacts">Todavía no has analizado ningún Excel</string>
+    <string name="choose_phone_column">¿Cuál columna tiene el número de teléfono?</string>
+    <string name="choose_business_column">¿Cuál columna tiene el nombre del negocio? (opcional)</string>
+    <string name="choose_website_column">¿Cuál columna tiene el sitio web o red social? (opcional)</string>
+    <string name="none_option">Ninguna / no aplica</string>
+    <string name="choose_retry_time_title">No contestó tras 2 intentos</string>
+    <string name="choose_retry_time_message">Elige a qué hora reintentar mañana con este número</string>
+    <string name="outcome_title">¿Cómo te fue con esta llamada?</string>
+    <string name="outcome_interested">👍 Interesado</string>
+    <string name="outcome_not_interested">👎 No interesado</string>
+    <string name="connect_google">Conectar Google (opcional)</string>
+
+    <string name="search_hint">Buscar contacto o teléfono…</string>
+    <string name="search_global_hint">Buscar en todas las carpetas…</string>
+    <string name="sign_out_title">¿Cerrar sesión?</string>
+    <string name="sign_out_message">Se desconectará tu cuenta de Google. No se perderán datos, pero la sincronización se detendrá.</string>
+    <string name="sign_out_confirm">Cerrar sesión</string>
+    <string name="nav_folders">Carpetas</string>
+    <string name="nav_interested">Interesados</string>
+    <string name="nav_scheduled">Programados</string>
+    <string name="nav_stats">Estadísticas</string>
+    <string name="nav_settings">Ajustes</string>
+    <string name="back_to_folders">← Volver</string>
+    <string name="clear_search">← Limpiar búsqueda</string>
+    <string name="alt_number_saved">→ %s guardado. Al terminar decidirás cuándo llamarlo.</string>
+    <string name="vacation_paused_until">Pausa activada hasta el %s</string>
+</resources>

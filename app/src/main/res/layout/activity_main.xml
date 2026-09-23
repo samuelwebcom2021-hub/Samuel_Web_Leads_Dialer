@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/colorBackground">
+
+
+
+    <com.tuempresa.autodialer.ui.AnimatedBackgroundView
+        android:id="@+id/animatedBackground"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:fitsSystemWindows="true">
+
+        <!-- Banner Modo Vacaciones Mejorado -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/vacationBanner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="8dp"
+            app:cardBackgroundColor="@color/goldAccent"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="6dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="12dp"
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_tab_scheduled"
+                    app:tint="@color/colorOnPrimary" />
+
+                <TextView
+                    android:id="@+id/vacationBannerText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="12dp"
+                    android:text="Modo Vacaciones activo"
+                    android:textColor="@color/colorOnPrimary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/resumeNowButton"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:text="Reanudar"
+                    android:textColor="@color/goldAccent"
+                    app:backgroundTint="@color/colorOnPrimary"
+                    android:textSize="12sp"
+                    android:paddingLeft="16dp"
+                    android:paddingRight="16dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    app:cornerRadius="20dp"
+                    android:textAllCaps="false" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <!-- ===== SECCIÓN ÚNICA COMPOSE (MIGRADO DE XML) ===== -->
+            <androidx.compose.ui.platform.ComposeView
+                android:id="@+id/composeContainer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="visible" />
+
+            <!-- ===== Overlay: analizando un Excel ===== -->
+
+
+            <!-- ===== SECCIÓN: ESTADÍSTICAS ===== -->
+            <include layout="@layout/activity_statistics" />
+
+            <!-- ===== SECCIÓN: AJUSTES ===== -->
+            <androidx.compose.ui.platform.ComposeView
+                android:id="@+id/sectionSettings"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+
+            <!-- ===== Overlay: analizando un Excel ===== -->
+            <FrameLayout
+                android:id="@+id/analyzingOverlay"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="#D0000000"
+                android:clickable="true"
+                android:focusable="true"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <com.google.android.material.progressindicator.CircularProgressIndicator
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:indeterminate="true"
+                        app:indicatorColor="@color/colorPrimary"
+                        app:trackColor="@color/colorSurfaceVariant" />
+
+                    <TextView
+                        android:id="@+id/analyzingOverlayText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:text="Analizando tu Excel…"
+                        android:textColor="@color/colorOnSurface"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </FrameLayout>
+
+        </FrameLayout>
+
+        <!--
+          CRITICAL: BottomNavigationView is limited to 5 items.
+          Adding a 6th item will cause an IllegalArgumentException crash.
+          Current items: nav_folders, nav_interested, nav_scheduled, nav_stats, nav_settings.
+        -->
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/bottomNav"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:labelVisibilityMode="selected"
+            app:itemRippleColor="@color/goldAccent"
+            app:menu="@menu/bottom_nav_menu" />
+
+    </LinearLayout>
+
+</FrameLayout>

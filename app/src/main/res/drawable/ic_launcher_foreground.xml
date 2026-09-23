@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Anillo de energía exterior (sutil) -->
+    <path
+        android:strokeColor="#80D4A947"
+        android:strokeWidth="0.5"
+        android:pathData="M54,54m-48,0a48,48 0,1 1,96 0a48,48 0,1 1,-96 0" />
+
+    <!-- Círculo central premium -->
+    <path
+        android:fillColor="#D4A947"
+        android:pathData="M54,54m-38,0a38,38 0,1 1,76 0a38,38 0,1 1,-76 0" />
+
+    <!-- Icono simplificado: Teléfono + Persona + Gráfico Ascendente -->
+    <path
+        android:fillColor="#111318"
+        android:pathData="M54,42c-3.3,0 -6,2.7 -6,6s2.7,6 6,6 6,-2.7 6,-6 -2.7,-6 -6,-6z M40,64c0,-5 10,-8 14,-8s14,3 14,8v2h-28v-2z M72,40l-2,2 4,4 -8,0 0,2 8,0 -4,4 2,2 6,-7 -6,-7z" />
+</vector>

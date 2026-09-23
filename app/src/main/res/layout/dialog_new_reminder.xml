@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Título"
+        android:textColor="@color/goldAccent"
+        android:textSize="12sp"
+        android:paddingBottom="4dp" />
+
+    <EditText
+        android:id="@+id/reminderTitleInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Ej: Llamar de nuevo"
+        android:inputType="textCapSentences"
+        android:background="@color/colorSurfaceVariant"
+        android:padding="12dp"
+        android:textColor="@color/colorOnSurface"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Descripción (Opcional)"
+        android:textColor="@color/goldAccent"
+        android:textSize="12sp"
+        android:paddingBottom="4dp" />
+
+    <EditText
+        android:id="@+id/reminderDescInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Detalles adicionales..."
+        android:inputType="textMultiLine"
+        android:gravity="top"
+        android:minLines="3"
+        android:background="@color/colorSurfaceVariant"
+        android:padding="12dp"
+        android:textColor="@color/colorOnSurface" />
+
+</LinearLayout>

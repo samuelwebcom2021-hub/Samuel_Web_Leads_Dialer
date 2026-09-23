@@ -1,0 +1,6 @@
+- [ ] Configurar `DialerSettings` en `App.kt` para soportar modos de selección de SIM.
+- [ ] Refinar `SimSelector.kt` para obtener etiquetas enriquecidas (SIM X - Operador) usando `SubscriptionManager`.
+- [ ] Implementar verificación de validez de SIM en `SimSelector.kt`.
+- [ ] Actualizar el flujo de marcado en `MainActivity.kt` para respetar la configuración de SIM.
+- [ ] Ajustar la UI de Ajustes en `MainActivity.kt` para gestionar la SIM de trabajo.
+- [ ] Refinar el inicio del servicio en `DialerService.kt` para usar la SIM configurada.

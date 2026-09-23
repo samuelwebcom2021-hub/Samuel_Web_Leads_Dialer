@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "334530379925",
+    "project_id": "samuel-web-leads-dialer",
+    "storage_bucket": "samuel-web-leads-dialer.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:334530379925:android:e05cdddc0c366e22ce1b9c",
+        "android_client_info": {
+          "package_name": "com.tuempresa.autodialer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "334530379925-osu2oe3nbrbgv4nfp6ktqlodlhac2hjo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tuempresa.autodialer",
+            "certificate_hash": "7d1a1089d108ce642990e8c6b7bff700cffef10e"
+          }
+        },
+        {
+          "client_id": "334530379925-ah8shap6gt557k8sk89hui04g2oas2bl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJ3TsrFVs1sZnY9kjEkwomKOcZYyAT80M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "334530379925-ah8shap6gt557k8sk89hui04g2oas2bl.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_folders"
+        android:icon="@drawable/ic_tab_folders"
+        android:title="Carpetas" />
+    <item
+        android:id="@+id/nav_interested"
+        android:icon="@drawable/ic_tab_interested"
+        android:title="Interesados" />
+    <item
+        android:id="@+id/nav_scheduled"
+        android:icon="@drawable/ic_tab_scheduled"
+        android:title="Agenda" />
+    <item
+        android:id="@+id/nav_stats"
+        android:icon="@drawable/ic_tab_stats"
+        android:title="Estadísticas" />
+    <item
+        android:id="@+id/nav_settings"
+        android:icon="@drawable/ic_tab_settings"
+        android:title="Ajustes" />
+</menu>
