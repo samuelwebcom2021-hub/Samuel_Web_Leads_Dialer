@@ -132,13 +132,23 @@ class CallViewModel(app: Application) : AndroidViewModel(app) {
         val currentSession = session.value ?: return
         viewModelScope.launch(Dispatchers.IO) {
             val contact = contactDao.getById(currentSession.contactId)
-            if (contact != null && (contact.status == "AWAITING_OUTCOME" || contact.status == "AWAITING_RETRY_TIME" || contact.status == "IN_PROGRESS")) {
-                val hasCapturedData = !currentSession.whatsappNumber.isNullOrBlank() || !currentSession.alternateNumber.isNullOrBlank()
-                val finalStatus = if (hasCapturedData) com.tuempresa.autodialer.data.ContactStatus.INTERESTED.name else com.tuempresa.autodialer.data.ContactStatus.PENDING.name
+            if (contact != null) {
+                val hasValidWhatsapp = !currentSession.whatsappNumber.isNullOrBlank() && currentSession.whatsappNumber.trim().length >= 4
+                val hasValidAlt = !currentSession.alternateNumber.isNullOrBlank() && currentSession.alternateNumber.trim().length >= 4
+                val hasValidData = hasValidWhatsapp || hasValidAlt
+
+                val finalStatus = if (hasValidData) {
+                    com.tuempresa.autodialer.data.ContactStatus.INTERESTED.name
+                } else if (contact.status == "AWAITING_OUTCOME" || contact.status == "IN_PROGRESS") {
+                    com.tuempresa.autodialer.data.ContactStatus.PENDING.name
+                } else {
+                    contact.status
+                }
+
                 contactDao.update(contact.copy(
                     status = finalStatus,
-                    ownerPhone = currentSession.alternateNumber,
-                    whatsappNumber = currentSession.whatsappNumber,
+                    ownerPhone = if (hasValidAlt) currentSession.alternateNumber else null,
+                    whatsappNumber = if (hasValidWhatsapp) currentSession.whatsappNumber else null,
                     notes = currentSession.notes
                 ).markDirty())
             }

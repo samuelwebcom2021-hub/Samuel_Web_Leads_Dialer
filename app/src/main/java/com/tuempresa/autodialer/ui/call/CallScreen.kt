@@ -124,8 +124,10 @@ fun CallScreen(viewModel: CallViewModel = viewModel()) {
 
                     when (currentSession.state) {
                         CallState.DISCONNECTED, CallState.FAILED -> {
-                            // RF-6: Regla de Interesado Automático (Dueño o WhatsApp capturados)
-                            val hasCapturedData = !currentSession.whatsappNumber.isNullOrBlank() || !currentSession.alternateNumber.isNullOrBlank()
+                            // RF-6: Regla de Interesado Automático (Dueño o WhatsApp capturados válidos)
+                            val hasValidWhatsapp = !currentSession.whatsappNumber.isNullOrBlank() && currentSession.whatsappNumber.trim().length >= 4
+                            val hasValidAlt = !currentSession.alternateNumber.isNullOrBlank() && currentSession.alternateNumber.trim().length >= 4
+                            val hasCapturedData = hasValidWhatsapp || hasValidAlt
 
                             if (postState == CallViewModel.PostCallState.FOLLOW_UP) {
                                 InterestedFollowUpScreen(
