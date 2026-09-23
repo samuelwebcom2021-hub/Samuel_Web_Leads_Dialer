@@ -4,6 +4,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import com.tuempresa.autodialer.data.AppDatabase
+import com.tuempresa.autodialer.domain.CallController
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Recibe las acciones de los botones de la notificación de recordatorio.
@@ -31,10 +36,39 @@ class ReminderActionReceiver : BroadcastReceiver() {
             }
             ACTION_CALL -> {
                 ReminderAlarmManager.stopReminder(context, agendaId)
-                // Lógica para abrir la app y llamar (se integrará en la fase de UI/UX)
-                val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                context.startActivity(launchIntent)
+                
+                // Ejecutar la llamada directa al contacto de la agenda y desplegar CallActivity
+                val pendingResult = goAsync()
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val db = AppDatabase.getInstance(context)
+                        val agendaItem = db.agendaItemDao().getById(agendaId)
+                        if (agendaItem != null) {
+                            val contact = db.contactDao().getById(agendaItem.contactId)
+                            if (contact != null) {
+                                val callController = CallController(context)
+                                callController.placeCall(contact, null)
+                            } else {
+                                launchAppFallback(context)
+                            }
+                        } else {
+                            launchAppFallback(context)
+                        }
+                    } catch (e: Exception) {
+                        launchAppFallback(context)
+                    } finally {
+                        pendingResult.finish()
+                    }
+                }
             }
+        }
+    }
+
+    private fun launchAppFallback(context: Context) {
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        if (launchIntent != null) {
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            context.startActivity(launchIntent)
         }
     }
 }

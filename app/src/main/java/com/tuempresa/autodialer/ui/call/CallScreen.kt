@@ -64,6 +64,22 @@ fun CallScreen(viewModel: CallViewModel = viewModel()) {
     }
 
     val currentSession = session!!
+    val isPip = (context as? android.app.Activity)?.isInPictureInPictureMode == true
+
+    if (isPip) {
+        val service by com.tuempresa.autodialer.dialer.AutoDialerInCallService.activeInCallService.collectAsState()
+        PipCallScreen(
+            contactName = contact?.businessName ?: currentSession.dialedNumber,
+            number = currentSession.dialedNumber,
+            callState = currentSession.state,
+            startTime = currentSession.startTime,
+            onHangupClick = {
+                viewModel.flushCapturedData()
+                service?.hangup()
+            }
+        )
+        return
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -374,6 +390,64 @@ fun PostCallScreen(onResultSelected: (CallResult) -> Unit) {
                 enabled = selectedResult == null,
                 contentDescription = "Marcar como $label"
             )
+        }
+    }
+}
+
+@Composable
+fun PipCallScreen(
+    contactName: String,
+    number: String,
+    callState: CallState,
+    startTime: Long,
+    onHangupClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = Color.Black
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = contactName,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                maxLines = 1,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = number,
+                color = GoldAccent,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val statusColor = if (callState == CallState.ACTIVE) Color(0xFF4CAF50) else Color(0xFFFFD54F)
+                Box(modifier = Modifier.size(6.dp).background(statusColor, CircleShape))
+                Spacer(modifier = Modifier.width(4.dp))
+                if (callState == CallState.ACTIVE) {
+                    CallTimer(startTime = startTime)
+                } else {
+                    Text("CONECTANDO", color = statusColor, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Button(
+                onClick = onHangupClick,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                shape = CircleShape,
+                modifier = Modifier.fillMaxWidth().height(26.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text("FINALIZAR", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
