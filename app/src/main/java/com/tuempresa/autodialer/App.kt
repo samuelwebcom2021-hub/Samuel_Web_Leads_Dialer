@@ -1,13 +1,14 @@
 package com.tuempresa.autodialer
 
 import android.app.Application
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import com.tuempresa.autodialer.data.AppDatabase
-import com.tuempresa.autodialer.data.ContactStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
-
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -57,12 +58,10 @@ class App : Application() {
         super.onCreate()
         setupStax()
         setupLogging()
-        createNotificationChannel()
-
+        createNotificationChannels()
     }
 
     private fun setupLogging() {
-        // Evitar crash de Apache POI / Log4j en Android (NoSuchMethodError LambdaMetafactory)
         System.setProperty("log4j2.disable.jmx", "true")
         System.setProperty("org.apache.logging.log4j.simplelog.StatusLogger.level", "OFF")
     }
@@ -73,19 +72,42 @@ class App : Application() {
         System.setProperty("javax.xml.stream.XMLEventFactory", "com.fasterxml.aalto.stax.EventFactoryImpl")
     }
 
-    private fun createNotificationChannel() {
-        val channel = NotificationChannel(
+    private fun createNotificationChannels() {
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+
+        // Canal de Marcador Automático (Bajo impacto / silencioso)
+        val dialerChannel = NotificationChannel(
             CHANNEL_ID,
             "Marcador automático",
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
             description = "Progreso de las llamadas automáticas en curso"
         }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
+        manager.createNotificationChannel(dialerChannel)
+
+        // Canal de Alarmas de Seguimiento (Alta Prioridad con Sonido / Banner Flotante / Vibración)
+        val alarmChannel = NotificationChannel(
+            ALARM_CHANNEL_ID,
+            "Alarmas y Recordatorios de Seguimiento",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Alertas sonoras y notificaciones flotantes de recordatorios"
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 500, 200, 500)
+            setSound(
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        }
+        manager.createNotificationChannel(alarmChannel)
     }
 
     companion object {
         const val CHANNEL_ID = "dialer_channel"
+        const val ALARM_CHANNEL_ID = "alarm_channel"
     }
 }

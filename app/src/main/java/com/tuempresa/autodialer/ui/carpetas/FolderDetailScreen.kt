@@ -180,63 +180,57 @@ fun ContactListItem(contact: ContactEntity, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = contact.businessName.ifBlank { "Sin nombre" },
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = contact.phoneNumber,
-                        color = GoldAccent,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
+                Text(
+                    text = contact.businessName.ifBlank { "Sin nombre" },
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    modifier = Modifier.weight(1f)
+                )
 
-                // Badge de Sitio propio (Image 2)
-                val (siteText, siteColor) = when (contact.websiteType) {
-                    "DOMINIO_PROPIO", "CONSTRUCTOR_WEB", "OWN_SITE" -> "Sitio propio" to Color(0xFF2E7D32)
-                    "RED_SOCIAL" -> "Red social" to Color(0xFF1565C0)
-                    "MARKETPLACE" -> "Marketplace" to Color(0xFF0288D1)
-                    else -> "Sin sitio" to Color(0xFF424242)
+                // Badge de Sitio propio (Image 1)
+                val (siteText, siteBg, siteTextCol) = when (contact.websiteType) {
+                    "DOMINIO_PROPIO", "CONSTRUCTOR_WEB", "OWN_SITE" -> Triple("Sitio propio", Color(0xFF1B382B), Color(0xFF81C784))
+                    "RED_SOCIAL" -> Triple("Red social", Color(0xFF152A38), Color(0xFF64B5F6))
+                    "MARKETPLACE" -> Triple("Marketplace", Color(0xFF152A38), Color(0xFF4FC3F7))
+                    else -> Triple("Sin sitio", Color(0xFF2B2B2B), Color.Gray)
                 }
 
                 Surface(
-                    color = siteColor.copy(alpha = 0.2f),
+                    color = siteBg,
                     shape = MaterialTheme.shapes.small,
-                    border = androidx.compose.foundation.BorderStroke(0.5.dp, siteColor.copy(alpha = 0.5f))
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, siteTextCol.copy(alpha = 0.4f))
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
                                 .size(6.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF2196F3)) // Punto azul
+                                .background(siteTextCol)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = siteText,
-                            color = Color(0xFF81C784), // Texto verde claro
-                            fontSize = 10.sp,
+                            color = siteTextCol,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
             }
 
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                thickness = 0.5.dp,
-                color = Color.White.copy(alpha = 0.1f)
+            Text(
+                text = contact.phoneNumber,
+                color = GoldAccent,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(vertical = 4.dp)
             )
 
-            // Información de estado y rating (Image 2)
+            // Información de estado y rating (Image 1)
             val statusLabel = when (contact.status) {
                 "PENDING" -> "Pendiente"
                 "INTERESTED" -> "Interesado"
@@ -250,7 +244,8 @@ fun ContactListItem(contact: ContactEntity, onClick: () -> Unit) {
             Text(
                 text = "$statusLabel (intento ${contact.attemptCount}/2)",
                 color = OnSurfaceMuted,
-                fontSize = 13.sp
+                fontSize = 13.sp,
+                modifier = Modifier.padding(top = 4.dp)
             )
 
             if (contact.rating != null) {

@@ -29,11 +29,25 @@ fun InterestedFollowUpScreen(
     onCallNow: () -> Unit,
     onSaveOnly: () -> Unit
 ) {
-    val context = LocalContext.current
     var showScheduler by remember { mutableStateOf(false) }
+
+    // Determinar el número a mostrar en el cuadro de seguimiento (Prioridad: WhatsApp -> Número Alternativo -> Número Marcado)
+    val capturedNumber = remember(session) {
+        session.whatsappNumber?.takeIf { it.isNotBlank() }
+            ?: session.alternateNumber?.takeIf { it.isNotBlank() }
+            ?: session.dialedNumber
+    }
+
+    // Tipo predeterminado según el dato ingresado durante la llamada
+    val defaultType = remember(session) {
+        if (!session.whatsappNumber.isNullOrBlank()) "WhatsApp"
+        else if (!session.alternateNumber.isNullOrBlank()) "Llamada"
+        else "WhatsApp"
+    }
 
     if (showScheduler) {
         FollowUpScheduler(
+            initialType = defaultType,
             onSave = onFollowUpScheduled,
             onCancel = { showScheduler = false }
         )
@@ -44,6 +58,8 @@ fun InterestedFollowUpScreen(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.height(32.dp))
+            
             Icon(
                 Icons.Default.CheckCircle,
                 contentDescription = null,
@@ -60,7 +76,7 @@ fun InterestedFollowUpScreen(
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            // Cuadro oscuro (Image 10)
+            // Cuadro oscuro mostrando el número capturado en vivo (Imagen 4)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -68,12 +84,13 @@ fun InterestedFollowUpScreen(
                 color = SurfaceVariantDark.copy(alpha = 0.5f),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                // Espacio para mostrar nombre si se desea, o simplemente decorativo como en la imagen
                 Box(contentAlignment = Alignment.Center) {
                     Text(
-                        text = session.dialedNumber,
-                        color = Color.White.copy(alpha = 0.5f),
-                        style = MaterialTheme.typography.bodyMedium
+                        text = capturedNumber,
+                        color = GoldAccent,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
                     )
                 }
             }
@@ -107,6 +124,7 @@ fun InterestedFollowUpScreen(
 
 @Composable
 fun FollowUpScheduler(
+    initialType: String = "WhatsApp",
     onSave: (Calendar, String) -> Unit,
     onCancel: () -> Unit
 ) {
@@ -115,15 +133,21 @@ fun FollowUpScheduler(
     
     var dateText by remember { mutableStateOf("Seleccionar fecha") }
     var timeText by remember { mutableStateOf("Seleccionar hora") }
-    var followUpType by remember { mutableStateOf("WhatsApp") }
+    var followUpType by remember { mutableStateOf(initialType) }
 
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Programar Seguimiento", color = GoldAccent, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Programar Seguimiento",
+            color = GoldAccent,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
         Spacer(modifier = Modifier.height(32.dp))
 
         OutlinedButton(
@@ -135,13 +159,13 @@ fun FollowUpScheduler(
                     dateText = "$d/${m+1}/$y"
                 }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
             },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(24.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, GoldAccent.copy(alpha = 0.5f))
         ) {
-            Icon(Icons.Default.CalendarToday, contentDescription = null, tint = GoldAccent)
+            Icon(Icons.Default.CalendarToday, contentDescription = null, tint = GoldAccent, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(12.dp))
-            Text(dateText, color = Color.White)
+            Text(dateText, color = GoldAccent, fontSize = 15.sp)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -154,45 +178,70 @@ fun FollowUpScheduler(
                     timeText = "%02d:%02d".format(h, m)
                 }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show()
             },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(24.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, GoldAccent.copy(alpha = 0.5f))
         ) {
-            Icon(Icons.Default.Schedule, contentDescription = null, tint = GoldAccent)
+            Icon(Icons.Default.Schedule, contentDescription = null, tint = GoldAccent, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(12.dp))
-            Text(timeText, color = Color.White)
+            Text(timeText, color = GoldAccent, fontSize = 15.sp)
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
-        Text("Tipo de seguimiento", color = Color.Gray, style = MaterialTheme.typography.labelMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("WhatsApp", "Llamada").forEach { type ->
-                val selected = followUpType == type
-                Surface(
-                    modifier = Modifier.weight(1f).height(48.dp).clickable { followUpType = type },
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (selected) GoldAccent.copy(alpha = 0.2f) else SurfaceVariantDark,
-                    border = if (selected) androidx.compose.foundation.BorderStroke(1.dp, GoldAccent) else null
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(type, color = if (selected) GoldAccent else Color.White)
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "Tipo de seguimiento",
+                color = Color.Gray,
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 12.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                listOf("WhatsApp", "Llamada").forEach { type ->
+                    val selected = followUpType == type
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clickable { followUpType = type },
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (selected) Color(0xFF38354A) else SurfaceVariantDark,
+                        border = if (selected) androidx.compose.foundation.BorderStroke(1.dp, GoldAccent.copy(alpha = 0.5f)) else null
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = type,
+                                color = if (selected) Color.White else Color.Gray,
+                                fontSize = 14.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(48.dp))
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
-                Text("CANCELAR", color = Color.Gray)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(
+                onClick = onCancel,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("CANCELAR", color = Color.White, fontWeight = FontWeight.Bold)
             }
             CrmActionButton(
                 text = "GUARDAR",
                 onClick = { onSave(calendar, followUpType) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).height(48.dp)
             )
         }
     }

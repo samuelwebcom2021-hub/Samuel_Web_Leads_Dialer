@@ -4,11 +4,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +18,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tuempresa.autodialer.data.CallSessionEntity
@@ -39,8 +42,7 @@ fun CallDataPanel(
     onSaveClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by remember { mutableStateOf(true) } // RF-8: Visible de entrada
-    
+    var expanded by remember { mutableStateOf(true) }
     var buttonState by remember { mutableStateOf(ButtonState.NORMAL) }
     val scope = rememberCoroutineScope()
 
@@ -55,7 +57,7 @@ fun CallDataPanel(
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // RF-8: ZONA DE DATOS DEL NEGOCIO (INFORMATIVA)
+            // ZONA DE DATOS DEL NEGOCIO
             if (contact != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -70,7 +72,6 @@ fun CallDataPanel(
                         letterSpacing = 1.sp
                     )
                     
-                    // Rating y Reseñas
                     if (contact.rating != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Star, contentDescription = null, tint = GoldAccent, modifier = Modifier.size(16.dp))
@@ -93,7 +94,7 @@ fun CallDataPanel(
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = contact.websiteRaw,
-                            color = Color(0xFF81D4FA), // Azul claro
+                            color = Color(0xFF81D4FA),
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1
                         )
@@ -131,33 +132,56 @@ fun CallDataPanel(
 
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.padding(top = 16.dp)) {
+                    // Campo Número Directo / Dueño con Teclado Numérico Telefónico
                     OutlinedTextField(
                         value = alternateNumber,
-                        onValueChange = { onDataChange(it, whatsappNumber, notes) },
+                        onValueChange = { 
+                            onDataChange(it, whatsappNumber, notes)
+                            onSaveClick()
+                        },
                         label = { Text("Número Directo / Dueño") },
                         modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Campo número alternativo" },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Phone,
+                            imeAction = ImeAction.Next
+                        ),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = GoldAccent,
                             focusedLabelColor = GoldAccent
                         )
                     )
+
                     Spacer(modifier = Modifier.height(12.dp))
+
+                    // Campo WhatsApp de Seguimiento con Teclado Numérico Telefónico
                     OutlinedTextField(
                         value = whatsappNumber,
-                        onValueChange = { onDataChange(alternateNumber, it, notes) },
+                        onValueChange = { 
+                            onDataChange(alternateNumber, it, notes)
+                            onSaveClick()
+                        },
                         label = { Text("WhatsApp de seguimiento") },
                         modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Campo número WhatsApp" },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Phone,
+                            imeAction = ImeAction.Done
+                        ),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = GoldAccent,
                             focusedLabelColor = GoldAccent
                         )
                     )
+
                     Spacer(modifier = Modifier.height(12.dp))
+
                     OutlinedTextField(
                         value = notes,
-                        onValueChange = { onDataChange(alternateNumber, whatsappNumber, it) },
+                        onValueChange = { 
+                            onDataChange(alternateNumber, whatsappNumber, it)
+                            onSaveClick()
+                        },
                         label = { Text("Notas de la llamada") },
                         modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Campo notas" },
                         minLines = 3,
@@ -166,6 +190,7 @@ fun CallDataPanel(
                             focusedLabelColor = GoldAccent
                         )
                     )
+
                     Spacer(modifier = Modifier.height(20.dp))
                     
                     CrmActionButton(
@@ -185,9 +210,9 @@ fun CallDataPanel(
                         contentDescription = "Botón para guardar información capturada"
                     )
 
-                    // RF-5: Guardado automático (Debounce)
+                    // Guardado automático continuo (Debounce)
                     LaunchedEffect(alternateNumber, whatsappNumber, notes) {
-                        delay(2000) // Esperar 2 segundos de inactividad
+                        delay(1000)
                         onSaveClick()
                     }
                 }

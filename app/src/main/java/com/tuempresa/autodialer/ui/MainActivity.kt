@@ -17,6 +17,7 @@ import android.os.Bundle
 import android.provider.OpenableColumns
 import android.provider.Settings
 import android.telecom.PhoneAccountHandle
+import android.telecom.TelecomManager
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -125,10 +126,16 @@ class MainActivity : AppCompatActivity() {
     private val dialerRoleLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == RESULT_OK) {
+        val isHeld = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = getSystemService(RoleManager::class.java)
+            roleManager?.isRoleHeld(RoleManager.ROLE_DIALER) == true
+        } else false
+
+        if (result.resultCode == RESULT_OK || isHeld) {
             Toast.makeText(this, "Rol de marcador concedido ✓", Toast.LENGTH_SHORT).show()
+            checkPermissionsAndStart()
         } else {
-            Toast.makeText(this, "Rol rechazado — el colgado automático no funcionará", Toast.LENGTH_LONG).show()
+            showDialerRoleExplanationDialog()
         }
     }
 
@@ -357,13 +364,34 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun launchDialerRolePicker() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val roleManager = getSystemService(RoleManager::class.java)
+                if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_DIALER)) {
+                    val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER)
+                    dialerRoleLauncher.launch(intent)
+                    return
+                }
+            }
+            @Suppress("DEPRECATION")
+            val intent = Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER).apply {
+                putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName)
+            }
+            dialerRoleLauncher.launch(intent)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error lanzando solicitud de marcador: ${e.message}")
+            checkPermissionsAndStart()
+        }
+    }
+
     private fun requestDialerRole() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val roleManager = getSystemService(RoleManager::class.java)
-            if (roleManager.isRoleHeld(RoleManager.ROLE_DIALER)) {
+            if (roleManager != null && roleManager.isRoleHeld(RoleManager.ROLE_DIALER)) {
                 AlertDialog.Builder(this)
                     .setTitle("Administrar Marcador")
-                    .setMessage("Samuel Web Leads Dialer ya es tu aplicación predeterminada.\n\n¿Deseas cambiarla en los ajustes del sistema?")
+                    .setMessage("AutoDialerCRM ya es tu aplicación predeterminada.\n\n¿Deseas cambiarla en los ajustes del sistema?")
                     .setPositiveButton("Ir a Ajustes") { _, _ ->
                         try {
                             val intent = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)
@@ -376,9 +404,10 @@ class MainActivity : AppCompatActivity() {
                     .setNegativeButton("Cancelar", null)
                     .show()
             } else {
-                val intent = roleManager.createRequestRoleIntent(RoleManager.ROLE_DIALER)
-                dialerRoleLauncher.launch(intent)
+                launchDialerRolePicker()
             }
+        } else {
+            launchDialerRolePicker()
         }
     }
 
@@ -523,6 +552,29 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun checkPermissionsAndStart() {
+        val missing = requiredPermissions.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
+        if (missing.isNotEmpty()) {
+            permissionLauncher.launch(missing.toTypedArray())
+        } else {
+            proceedToSimSelection()
+        }
+    }
+
+    private fun showDialerRoleExplanationDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Marcador Predeterminado")
+            .setMessage("Para que la automatización (pantalla de llamadas en la app, detección de respuesta y colgado automático) funcione correctamente, la app debe estar seleccionada como marcador predeterminado.\n\n¿Deseas intentarlo de nuevo o continuar?")
+            .setPositiveButton("Seleccionar Marcador") { _, _ ->
+                launchDialerRolePicker()
+            }
+            .setNegativeButton("Continuar de todos modos") { _, _ ->
+                checkPermissionsAndStart()
+            }
+            .setNeutralButton("Cancelar", null)
+            .show()
+    }
+
     private fun startDialingFlow() {
         val currentFolderId = currentBatchIdState.value ?: return
         
@@ -539,13 +591,13 @@ class MainActivity : AppCompatActivity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val roleManager = getSystemService(RoleManager::class.java)
-            if (!roleManager.isRoleHeld(RoleManager.ROLE_DIALER)) {
-                requestDialerRole()
+            if (roleManager != null && !roleManager.isRoleHeld(RoleManager.ROLE_DIALER)) {
+                launchDialerRolePicker()
                 return
             }
         }
-        val missing = requiredPermissions.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
-        if (missing.isNotEmpty()) permissionLauncher.launch(missing.toTypedArray()) else proceedToSimSelection()
+        
+        checkPermissionsAndStart()
     }
 
     private fun proceedToSimSelection() {

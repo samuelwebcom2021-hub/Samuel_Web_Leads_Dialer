@@ -71,12 +71,13 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
         }
         val fullScreenPending = PendingIntent.getActivity(context, agendaId.toInt() + 400, fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
-        val notification = NotificationCompat.Builder(context, App.CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, App.ALARM_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_tab_scheduled)
             .setContentTitle(title)
             .setContentText(description)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setFullScreenIntent(fullScreenPending, true)
             .addAction(R.drawable.ic_delete, "DETENER", stopPending)
             .addAction(R.drawable.ic_tab_scheduled, "POSPONER 10 MIN", snoozePending)

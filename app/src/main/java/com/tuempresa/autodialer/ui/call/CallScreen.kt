@@ -36,7 +36,6 @@ import android.os.Build
 
 import androidx.lifecycle.viewmodel.compose.viewModel
 
-@RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun CallScreen(viewModel: CallViewModel = viewModel()) {
     val session by viewModel.session.collectAsState()
@@ -48,13 +47,19 @@ fun CallScreen(viewModel: CallViewModel = viewModel()) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var showDtmf by remember { mutableStateOf(false) }
 
+    androidx.activity.compose.BackHandler {
+        if (showDtmf) {
+            showDtmf = false
+        } else {
+            viewModel.finishSession()
+        }
+    }
+
     if (session == null) {
         LaunchedEffect(Unit) {
-            // RF-13: Cerrar la actividad si no hay sesión activa
-            (context as? android.app.Activity)?.finish()
+            (context as? CallActivity)?.finishCallActivity() ?: (context as? android.app.Activity)?.finish()
         }
-        // Fondo negro inmediato para evitar la pantalla blanca/gris antes de cerrar
-        Box(Modifier.fillMaxSize().background(Color.Black))
+        Box(Modifier.fillMaxSize())
         return
     }
 

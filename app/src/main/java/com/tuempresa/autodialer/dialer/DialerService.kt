@@ -29,6 +29,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
@@ -169,10 +170,19 @@ class DialerService : Service() {
     private fun startLoop() {
         // Llamar a startForeground INMEDIATAMENTE para evitar RemoteServiceException en Android 8+
         val notification = buildNotification("Preparando llamadas…")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.e("DialerService", "Error al iniciar startForeground con tipo PHONE_CALL: ${e.message}")
+            try {
+                startForeground(NOTIFICATION_ID, notification)
+            } catch (e2: Exception) {
+                Log.e("DialerService", "Error total en startForeground: ${e2.message}")
+            }
         }
 
         if (!decisionEngine.canContinue()) {
@@ -356,32 +366,35 @@ class DialerService : Service() {
     /** Espera a que la sesión en Room pase a DISCONNECTED/FAILED O señal de saltar. */
     private suspend fun waitForCallEndOrSkip(skipSignal: CompletableDeferred<Unit>): Boolean = coroutineScope {
         val sessionEndDeferred = async { 
-            db.callSessionDao().observeActiveSession().first { 
-                it == null || it.state == com.tuempresa.autodialer.data.CallState.DISCONNECTED || 
-                it.state == com.tuempresa.autodialer.data.CallState.FAILED
+            db.callSessionDao().observeActiveSession().first { session ->
+                session == null || 
+                session.state == com.tuempresa.autodialer.data.CallState.DISCONNECTED || 
+                session.state == com.tuempresa.autodialer.data.CallState.FAILED
             }
         }
         
-        // RF-15: Timeout de seguridad de 30s por si Telecom nunca conecta ni falla (bug de sistema)
-        val safetyTimeout = async {
-            delay(30000)
-            Log.w("DialerService", "Timeout de seguridad alcanzado (30s) esperando fin de llamada.")
-            true
+        // Timeout de no respuesta: solo aplica si la llamada sigue en marcación/sonando y no se contesta tras el tiempo configurado
+        val nonAnswerTimeout = async {
+            val autoHangupMillis = settings.autoHangupSeconds * 1000L
+            delay(autoHangupMillis)
+            val currentSession = db.callSessionDao().observeActiveSession().firstOrNull()
+            if (currentSession != null && 
+                currentSession.state != com.tuempresa.autodialer.data.CallState.ACTIVE && 
+                currentSession.state != com.tuempresa.autodialer.data.CallState.DISCONNECTED &&
+                currentSession.state != com.tuempresa.autodialer.data.CallState.FAILED) {
+                Log.w("DialerService", "Tiempo de no respuesta alcanzado (${autoHangupMillis} ms). Colgando marcación sin respuesta.")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    AutoDialerInCallService.activeInCallService.value?.hangup()
+                }
+            }
         }
 
         val skipped = select<Boolean> {
             sessionEndDeferred.onAwait { false }
             skipSignal.onAwait { true }
-            safetyTimeout.onAwait { 
-                // Si llegamos aquí, forzamos colgado
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    AutoDialerInCallService.activeInCallService.value?.hangup()
-                }
-                false 
-            }
         }
         sessionEndDeferred.cancel()
-        safetyTimeout.cancel()
+        nonAnswerTimeout.cancel()
         skipped
     }
 

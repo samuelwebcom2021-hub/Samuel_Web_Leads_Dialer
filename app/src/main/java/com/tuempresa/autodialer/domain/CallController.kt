@@ -70,6 +70,18 @@ class CallController(private val context: Context) {
             // Registrar para que el InCallService sepa que es una llamada automatizada
             com.tuempresa.autodialer.dialer.PendingAutoCallTracker.track(contact.phoneNumber)
 
+            // Abrir la pantalla de llamadas de nuestra app de inmediato para que no salte la app nativa de Google
+            try {
+                val callIntent = android.content.Intent(context, com.tuempresa.autodialer.ui.call.CallActivity::class.java).apply {
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or 
+                             android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or 
+                             android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                context.startActivity(callIntent)
+            } catch (e: Exception) {
+                Log.e("CallController", "Error al abrir CallActivity directamente: ${e.message}")
+            }
+
             // 3. Colocar la llamada vía Telecom
             if (phoneAccount?.id == "FakeSimID") {
                 Log.d("CallController", "[MODO PRUEBA] Simulando llamada exitosa...")

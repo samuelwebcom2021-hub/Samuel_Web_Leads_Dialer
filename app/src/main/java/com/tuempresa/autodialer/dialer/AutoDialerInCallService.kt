@@ -1,5 +1,7 @@
 package com.tuempresa.autodialer.dialer
 
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.RingtoneManager
@@ -10,32 +12,29 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.telecom.Call
+import android.telecom.CallAudioState
+import android.telecom.CallEndpoint
 import android.telecom.DisconnectCause
 import android.telecom.InCallService
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.core.app.NotificationCompat
 import com.tuempresa.autodialer.App
+import com.tuempresa.autodialer.R
 import com.tuempresa.autodialer.data.CallAttemptEntity
 import com.tuempresa.autodialer.data.CallResult
 import com.tuempresa.autodialer.data.CallSessionEntity
 import com.tuempresa.autodialer.data.CallState
-import android.telecom.CallAudioState
-import android.telecom.CallEndpoint
 import com.tuempresa.autodialer.sync.SyncCoordinator
 import com.tuempresa.autodialer.ui.call.CallActivity
-import androidx.core.app.NotificationCompat
-import android.app.NotificationManager
-import android.app.PendingIntent
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import com.tuempresa.autodialer.R
 
-@RequiresApi(Build.VERSION_CODES.Q)
 class AutoDialerInCallService : InCallService() {
 
     private val CALL_NOTIFICATION_ID = 43
@@ -48,24 +47,46 @@ class AutoDialerInCallService : InCallService() {
     private val settings get() = app.settingsState.value
     private val db by lazy { app.db }
 
+    companion object {
+        const val ACTION_HANGUP = "com.tuempresa.autodialer.action.NOTIF_HANGUP"
+        const val ACTION_TOGGLE_SPEAKER = "com.tuempresa.autodialer.action.NOTIF_TOGGLE_SPEAKER"
+
+        private val _activeInCallService = MutableStateFlow<AutoDialerInCallService?>(null)
+        val activeInCallService = _activeInCallService.asStateFlow()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_HANGUP -> {
+                hangup()
+            }
+            ACTION_TOGGLE_SPEAKER -> {
+                val currentAudio = _audioState.value
+                val isSpeaker = currentAudio?.route == CallAudioState.ROUTE_SPEAKER
+                setSpeaker(!isSpeaker)
+            }
+        }
+        return super.onStartCommand(intent, flags, startId)
+    }
+
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
         currentCall = call
         val details = call.details
         val number = details.handle?.schemeSpecificPart
         
-        val isIncoming = details.callDirection == Call.Details.DIRECTION_INCOMING
+        val isIncoming = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            details.callDirection == Call.Details.DIRECTION_INCOMING
+        } else {
+            call.state == Call.STATE_RINGING
+        }
         
-        // Determinar si es una llamada gestionada por nuestra app
         val accountHandle = details.accountHandle
-        
-        // Es automatizada si está en el rastreador O si usa la SIM de trabajo configurada
         val isAutomated = !isIncoming && (PendingAutoCallTracker.isAutomated(number) || 
                 (accountHandle != null && 
                  accountHandle.componentName.flattenToString() == settings.workPhoneAccountComponent &&
                  accountHandle.id == settings.workPhoneAccountId))
 
-        // No arrancar el timer aquí. Se hará en onStateChanged (RF-15)
         if (isIncoming) {
             scope.launch {
                 val sessionExists = db.callSessionDao().observeActiveSession().firstOrNull() != null
@@ -87,23 +108,29 @@ class AutoDialerInCallService : InCallService() {
             }
         }
 
-
-
-        // Lanzar CallActivity unificada con alta prioridad
-        showCallNotification(number ?: "Contacto")
-        
-        val intent = Intent(this, CallActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or 
-                     Intent.FLAG_ACTIVITY_SINGLE_TOP or 
-                     Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        // Obtener el nombre del contacto para la notificación interactiva
+        scope.launch {
+            val session = db.callSessionDao().observeActiveSession().firstOrNull()
+            val contact = if (session != null && session.contactId > 0) db.contactDao().getById(session.contactId) else null
+            val contactName = contact?.businessName?.ifBlank { null } ?: number ?: "Contacto"
+            showCallNotification(number ?: "", contactName)
         }
-        startActivity(intent)
+        
+        try {
+            val intent = Intent(this, CallActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or 
+                         Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or 
+                         Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e("InCallService", "Error al lanzar CallActivity: ${e.message}")
+        }
 
         call.registerCallback(object : Call.Callback() {
             override fun onStateChanged(call: Call, state: Int) {
                 updateSessionState(state)
                 
-                // RF-15: El temporizador arranca cuando la llamada está sonando o marcando
                 if (isAutomated && (state == Call.STATE_DIALING || state == Call.STATE_RINGING)) {
                     if (hangupRunnable == null) {
                         startHangupTimer(call)
@@ -125,7 +152,6 @@ class AutoDialerInCallService : InCallService() {
             }
         })
         
-        // Primera actualización al añadir la llamada
         updateSessionState(call.state)
     }
 
@@ -142,10 +168,7 @@ class AutoDialerInCallService : InCallService() {
 
         scope.launch {
             val session = db.callSessionDao().observeActiveSession().firstOrNull() 
-            if (session == null) {
-                Log.d("InCallService", "updateSessionState: No hay sesión activa en Room para actualizar.")
-                return@launch
-            }
+            if (session == null) return@launch
             
             val updated = session.copy(
                 state = newState,
@@ -153,6 +176,10 @@ class AutoDialerInCallService : InCallService() {
             )
             db.callSessionDao().update(updated)
             DialerEvents.updateSession(updated)
+
+            val contact = if (updated.contactId > 0) db.contactDao().getById(updated.contactId) else null
+            val contactName = contact?.businessName?.ifBlank { null } ?: updated.dialedNumber
+            showCallNotification(updated.dialedNumber, contactName)
         }
     }
 
@@ -162,20 +189,16 @@ class AutoDialerInCallService : InCallService() {
         
         scope.launch {
             val session = db.callSessionDao().observeActiveSession().firstOrNull() 
-            if (session == null) {
-                Log.d("InCallService", "handleCallDisconnected: No hay sesión activa en Room para finalizar.")
-                return@launch
-            }
+            if (session == null) return@launch
             
             val endTime = System.currentTimeMillis()
             
-            // 1. Crear el histórico (CallAttempt)
             val attempt = CallAttemptEntity(
                 contactId = session.contactId,
                 timestampMillis = session.startTime,
                 durationMillis = if (session.answerTime != null) endTime - session.answerTime else 0,
                 result = result,
-                resultLabel = result.name, // Se refinará en post-call UI
+                resultLabel = result.name,
                 notes = session.notes,
                 alternateNumber = session.alternateNumber,
                 whatsappNumber = session.whatsappNumber
@@ -183,7 +206,6 @@ class AutoDialerInCallService : InCallService() {
             val attemptId = db.callAttemptDao().insert(attempt)
             SyncCoordinator(this@AutoDialerInCallService).syncCallAttemptUpdate(attemptId)
 
-            // 2. Actualizar sesión a DISCONNECTED (Post-Call) en lugar de borrarla
             val updated = session.copy(
                 state = CallState.DISCONNECTED,
                 result = result,
@@ -191,8 +213,6 @@ class AutoDialerInCallService : InCallService() {
             )
             db.callSessionDao().update(updated)
             DialerEvents.updateSession(updated)
-            
-            Log.d("InCallService", "Llamada finalizada: $result. Transición a Post-Call.")
         }
     }
 
@@ -200,8 +220,8 @@ class AutoDialerInCallService : InCallService() {
         return when (cause?.code) {
             DisconnectCause.BUSY -> CallResult.BUSY
             DisconnectCause.REJECTED -> CallResult.REJECTED
-            DisconnectCause.REMOTE -> CallResult.ANSWERED // Generalmente significa que el otro colgó tras hablar
-            DisconnectCause.LOCAL -> CallResult.NO_ANSWER // Colgado por el usuario/robot antes de contestar
+            DisconnectCause.REMOTE -> CallResult.ANSWERED
+            DisconnectCause.LOCAL -> CallResult.NO_ANSWER
             DisconnectCause.MISSED -> CallResult.NO_ANSWER
             DisconnectCause.ERROR -> CallResult.FAILED
             else -> CallResult.NO_ANSWER
@@ -223,8 +243,6 @@ class AutoDialerInCallService : InCallService() {
             @Suppress("DEPRECATION")
             val state = call.state
             if (state != Call.STATE_ACTIVE && state != Call.STATE_DISCONNECTED) {
-                Log.i("InCallService", "Timeout de 20s alcanzado en estado CONECTANDO. Colgando automáticamente.")
-                // RF-15: Marcar en la sesión que fue por TIMEOUT_AUTO para el motor
                 scope.launch {
                     val session = db.callSessionDao().observeActiveSession().firstOrNull()
                     if (session != null) {
@@ -240,11 +258,6 @@ class AutoDialerInCallService : InCallService() {
     private fun cancelHangupTimer() {
         hangupRunnable?.let { handler.removeCallbacks(it) }
         hangupRunnable = null
-    }
-
-    companion object {
-        private val _activeInCallService = MutableStateFlow<AutoDialerInCallService?>(null)
-        val activeInCallService = _activeInCallService.asStateFlow()
     }
 
     override fun onCreate() {
@@ -288,21 +301,15 @@ class AutoDialerInCallService : InCallService() {
     }
 
     fun setSpeaker(enabled: Boolean) {
-        Log.d("InCallService", "Solicitando altavoz: $enabled")
-        
-        // RF-08: Asegurar que el cambio sea bidireccional y confiable
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             val type = if (enabled) CallEndpoint.TYPE_SPEAKER else CallEndpoint.TYPE_EARPIECE
             val target = _availableEndpoints.value.find { it.endpointType == type }
-            
-            // Si el earpiece no está disponible (ej: tablet), buscar el endpoint de comunicación por defecto
             val finalTarget = target ?: if (!enabled) _availableEndpoints.value.firstOrNull { it.endpointType == CallEndpoint.TYPE_EARPIECE || it.endpointType == CallEndpoint.TYPE_WIRED_HEADSET } else null
 
             if (finalTarget != null) {
                 requestCallEndpointChange(finalTarget, { it.run() }, object : android.os.OutcomeReceiver<Void, android.telecom.CallEndpointException> {
-                    override fun onResult(result: Void?) { Log.d("InCallService", "Cambiado exitosamente a tipo: ${finalTarget.endpointType}") }
-                    override fun onError(error: android.telecom.CallEndpointException) { 
-                        Log.e("InCallService", "Error al cambiar audio vía Endpoint", error)
+                    override fun onResult(result: Void?) {}
+                    override fun onError(error: android.telecom.CallEndpointException) {
                         @Suppress("DEPRECATION")
                         setAudioRoute(if (enabled) CallAudioState.ROUTE_SPEAKER else CallAudioState.ROUTE_EARPIECE)
                     }
@@ -311,19 +318,9 @@ class AutoDialerInCallService : InCallService() {
             }
         }
         
-        // Fallback para versiones anteriores o si falló el endpoint
         @Suppress("DEPRECATION")
         val route = if (enabled) CallAudioState.ROUTE_SPEAKER else CallAudioState.ROUTE_EARPIECE
         setAudioRoute(route)
-    }
-
-    fun switchEndpoint(endpoint: CallEndpoint) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            requestCallEndpointChange(endpoint, { it.run() }, object : android.os.OutcomeReceiver<Void, android.telecom.CallEndpointException> {
-                override fun onResult(result: Void?) {}
-                override fun onError(error: android.telecom.CallEndpointException) {}
-            })
-        }
     }
 
     fun hangup() {
@@ -334,36 +331,48 @@ class AutoDialerInCallService : InCallService() {
         currentCall?.answer(0)
     }
 
-    fun isCurrentCallIncoming(): Boolean {
-        return currentCall?.state == Call.STATE_RINGING
-    }
-
-    private fun getCallNumber(): String? {
-        return currentCall?.details?.handle?.schemeSpecificPart
-    }
-
-    private fun showCallNotification(number: String) {
-        val intent = Intent(this, CallActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+    private fun showCallNotification(number: String, contactName: String = "Llamada en curso") {
+        val appIntent = Intent(this, CallActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
         }
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
+        val pendingAppIntent = PendingIntent.getActivity(
+            this, 0, appIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(this, App.CHANNEL_ID)
+        val hangupIntent = Intent(this, AutoDialerInCallService::class.java).apply {
+            action = ACTION_HANGUP
+        }
+        val pendingHangup = PendingIntent.getService(
+            this, 1, hangupIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val speakerIntent = Intent(this, AutoDialerInCallService::class.java).apply {
+            action = ACTION_TOGGLE_SPEAKER
+        }
+        val pendingSpeaker = PendingIntent.getService(
+            this, 2, speakerIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val isSpeaker = _audioState.value?.route == CallAudioState.ROUTE_SPEAKER
+
+        val builder = NotificationCompat.Builder(this, App.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_call_notification)
-            .setContentTitle("Llamada en curso")
+            .setContentTitle(contactName)
             .setContentText(number)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setFullScreenIntent(pendingIntent, true)
+            .setContentIntent(pendingAppIntent)
+            .setFullScreenIntent(pendingAppIntent, true)
+            .addAction(R.drawable.ic_call_notification, "📞 COLGAR", pendingHangup)
+            .addAction(R.drawable.ic_call_notification, if (isSpeaker) "🔈 AURICULAR" else "🔊 ALTAVOZ", pendingSpeaker)
             .setOngoing(true)
             .setAutoCancel(false)
-            .build()
 
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.notify(CALL_NOTIFICATION_ID, notification)
+        manager.notify(CALL_NOTIFICATION_ID, builder.build())
     }
 
     private fun cancelCallNotification() {

@@ -19,7 +19,6 @@ import com.tuempresa.autodialer.dialer.AutoDialerInCallService
 import com.tuempresa.autodialer.ui.theme.GoldAccent
 import com.tuempresa.autodialer.ui.theme.SurfaceVariantDark
 
-@RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun CallControls(
     onKeypadClick: () -> Unit,

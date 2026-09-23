@@ -160,7 +160,7 @@ class ContactsViewModel(app: Application) : AndroidViewModel(app) {
     fun updateFinalOutcomeStatus(status: String) = viewModelScope.launch { settingsRepo.updateFinalOutcomeStatus(status) }
     fun updateLastQuotaPauseDate(date: String?) = viewModelScope.launch { settingsRepo.updateLastQuotaPauseDate(date) }
 
-    val dailyStats = db.callAttemptDao().observeDailyStats(System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L).asLiveData()
+    val dailyStats = db.callAttemptDao().observeAllDailyStats().asLiveData()
 
     // RF-6: Agenda unificada
     val folderRetries = db.agendaItemDao().observeByTypeWithContact(com.tuempresa.autodialer.data.AgendaItemType.FOLDER_RETRY).asLiveData()

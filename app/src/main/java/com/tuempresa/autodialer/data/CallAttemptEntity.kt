@@ -52,13 +52,23 @@ interface CallAttemptDao {
     @Query("""
         SELECT strftime('%Y-%m-%d', timestampMillis / 1000, 'unixepoch', 'localtime') as date,
                COUNT(*) as totalAttempts,
-               SUM(CASE WHEN resultLabel = 'Interesado' THEN 1 ELSE 0 END) as interestedCount
+               SUM(CASE WHEN result = 'INTERESTED' OR resultLabel = 'Interesado' OR resultLabel = 'INTERESTED' THEN 1 ELSE 0 END) as interestedCount
         FROM call_attempts
         WHERE timestampMillis >= :sinceMillis
         GROUP BY date
         ORDER BY date ASC
     """)
     fun observeDailyStats(sinceMillis: Long): Flow<List<DailyStat>>
+
+    @Query("""
+        SELECT strftime('%Y-%m-%d', timestampMillis / 1000, 'unixepoch', 'localtime') as date,
+               COUNT(*) as totalAttempts,
+               SUM(CASE WHEN result = 'INTERESTED' OR resultLabel = 'Interesado' OR resultLabel = 'INTERESTED' THEN 1 ELSE 0 END) as interestedCount
+        FROM call_attempts
+        GROUP BY date
+        ORDER BY date ASC
+    """)
+    fun observeAllDailyStats(): Flow<List<DailyStat>>
 
     @Query("""
         SELECT strftime('%Y-%m', timestampMillis / 1000, 'unixepoch', 'localtime') as month,

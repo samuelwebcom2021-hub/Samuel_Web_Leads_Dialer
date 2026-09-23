@@ -24,6 +24,20 @@ class CallViewModel(app: Application) : AndroidViewModel(app) {
     private val _progress = MutableStateFlow<DialerEvent.Progress?>(null)
     val progress = _progress.asStateFlow()
 
+    // RF-5: Captura de datos en tiempo real
+    private val _alternateNumber = MutableStateFlow("")
+    val alternateNumber = _alternateNumber.asStateFlow()
+
+    private val _whatsappNumber = MutableStateFlow("")
+    val whatsappNumber = _whatsappNumber.asStateFlow()
+
+    private val _notes = MutableStateFlow("")
+    val notes = _notes.asStateFlow()
+
+    enum class PostCallState { OPTIONS, FOLLOW_UP }
+    private val _postCallState = MutableStateFlow(PostCallState.OPTIONS)
+    val postCallState = _postCallState.asStateFlow()
+
     init {
         DialerEvents.events.filterIsInstance<DialerEvent.Progress>()
             .onEach { _progress.value = it }
@@ -45,16 +59,6 @@ class CallViewModel(app: Application) : AndroidViewModel(app) {
             flowOf(null)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
-    // RF-5: Captura de datos en tiempo real
-    private val _alternateNumber = MutableStateFlow("")
-    val alternateNumber = _alternateNumber.asStateFlow()
-
-    private val _whatsappNumber = MutableStateFlow("")
-    val whatsappNumber = _whatsappNumber.asStateFlow()
-
-    private val _notes = MutableStateFlow("")
-    val notes = _notes.asStateFlow()
 
     fun updateCapturedData(alt: String, whatsapp: String, note: String) {
         _alternateNumber.value = alt
@@ -88,10 +92,6 @@ class CallViewModel(app: Application) : AndroidViewModel(app) {
             flowOf("Llamada Manual")
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Campaña")
-
-    enum class PostCallState { OPTIONS, FOLLOW_UP }
-    private val _postCallState = MutableStateFlow(PostCallState.OPTIONS)
-    val postCallState = _postCallState.asStateFlow()
 
     fun resolveOutcome(result: com.tuempresa.autodialer.data.CallResult) {
         val currentSession = session.value ?: return
