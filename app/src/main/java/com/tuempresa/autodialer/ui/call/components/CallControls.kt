@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.annotation.RequiresApi
 import android.os.Build
@@ -97,14 +98,14 @@ fun CallControls(
             }
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // ZONA D: ACCIÓN PRINCIPAL (Finalizar)
         Button(
             onClick = onHangupClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(56.dp)
                 .semantics { contentDescription = "Finalizar llamada" },
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFFD32F2F), // Rojo intenso
@@ -113,9 +114,9 @@ fun CallControls(
             shape = CircleShape
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CallEnd, contentDescription = null, modifier = Modifier.size(32.dp))
-                Spacer(Modifier.width(16.dp))
-                Text("FINALIZAR", style = MaterialTheme.typography.titleLarge)
+                Icon(Icons.Default.CallEnd, contentDescription = null, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(12.dp))
+                Text("FINALIZAR", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
         }
     }

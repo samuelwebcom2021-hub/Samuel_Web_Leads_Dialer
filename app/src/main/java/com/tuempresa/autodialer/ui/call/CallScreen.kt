@@ -2,6 +2,8 @@ package com.tuempresa.autodialer.ui.call
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -89,6 +91,7 @@ fun CallScreen(viewModel: CallViewModel = viewModel()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -103,7 +106,7 @@ fun CallScreen(viewModel: CallViewModel = viewModel()) {
                     startTime = currentSession.startTime
                 )
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 if (showDtmf) {
                     DtmfKeypad(
@@ -222,12 +225,12 @@ fun ZoneIdentity(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Estado de automatización
         AutomationStatus(state = automationState)
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Identidad del contacto
         Text(
@@ -245,7 +248,7 @@ fun ZoneIdentity(
             modifier = Modifier.padding(top = 4.dp)
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Estado de la llamada y temporizador
         Row(
