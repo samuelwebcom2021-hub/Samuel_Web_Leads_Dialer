@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import com.tuempresa.autodialer.App
 import com.tuempresa.autodialer.R
 import com.tuempresa.autodialer.data.CallOutcome
+import com.tuempresa.autodialer.data.CallResult
 import com.tuempresa.autodialer.data.ContactEntity
 import com.tuempresa.autodialer.data.ContactStatus
 import com.tuempresa.autodialer.data.markDirty
@@ -375,14 +376,14 @@ class DialerService : Service() {
         
         // Timeout de no respuesta: solo aplica si la llamada sigue en marcación/sonando y no se contesta tras el tiempo configurado
         val nonAnswerTimeout = async {
-            val autoHangupMillis = settings.autoHangupSeconds * 1000L
+            val autoHangupMillis = DIAL_TIMEOUT_SECONDS * 1000L
             delay(autoHangupMillis)
             val currentSession = db.callSessionDao().observeActiveSession().firstOrNull()
             if (currentSession != null && 
                 currentSession.state != com.tuempresa.autodialer.data.CallState.ACTIVE && 
                 currentSession.state != com.tuempresa.autodialer.data.CallState.DISCONNECTED &&
                 currentSession.state != com.tuempresa.autodialer.data.CallState.FAILED) {
-                Log.w("DialerService", "Tiempo de no respuesta alcanzado (${autoHangupMillis} ms). Colgando marcación sin respuesta.")
+                Log.w("DialerService", "Tiempo de no respuesta ($DIAL_TIMEOUT_SECONDS s) alcanzado. Colgando marcación sin respuesta.")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     AutoDialerInCallService.activeInCallService.value?.hangup()
                 }
@@ -404,18 +405,12 @@ class DialerService : Service() {
         syncCoordinator.syncContactUpdate(reverted.id)
     }
 
-    /**
-     * Cuando el contacto necesita que TÚ decidas algo (interesado/no, u hora de mañana),
-     * el servicio emite el evento y se queda esperando la resolución de ESE contacto antes
-     * de seguir — así nunca avanza a llamar al siguiente mientras todavía estás decidiendo
-     * sobre el anterior.
-     */
     private suspend fun applyOutcome(contact: ContactEntity, outcome: CallOutcome, wasTimeout: Boolean = false) {
-        // Buscamos la sesión persistida antes de que se limpie
         val lastSession = db.callSessionDao().observeActiveSession().first()
         val lastAltNumber = lastSession?.alternateNumber
         val lastWaNumber = lastSession?.whatsappNumber
         val lastNotes = lastSession?.notes
+        val lastResult = lastSession?.result
 
         if (!lastAltNumber.isNullOrBlank()) {
             DialerEvents.emit(DialerEvent.NeedsAltNumberChoice(contact.id, lastAltNumber, contact.businessName))
@@ -428,6 +423,9 @@ class DialerService : Service() {
             notes = lastNotes
         )
 
+        val isNoAnswer = wasTimeout || outcome == CallOutcome.NO_ANSWER_OR_VOICEMAIL || lastResult == CallResult.NO_ANSWER
+        val wasManualUserHangup = lastResult == CallResult.REJECTED || lastResult == CallResult.BUSY
+
         when {
             outcome == CallOutcome.ANSWERED -> {
                 val updated = baseUpdatedContact.copy(status = ContactStatus.AWAITING_OUTCOME.name, lastOutcome = outcome.name).markDirty()
@@ -436,42 +434,71 @@ class DialerService : Service() {
                 DialerEvents.emit(DialerEvent.NeedsOutcomeChoice(contact.id, contact.phoneNumber, contact.businessName))
                 DialerEvents.awaitResolution(contact.id)
             }
-            wasTimeout && contact.attemptCount < settings.maxAttemptsPerContact -> {
-                // RF-15: UNICO caso de reintento automático: Fue timeout y tiene intentos restantes
-                val updated = baseUpdatedContact.copy(status = ContactStatus.PENDING.name, lastOutcome = "TIMEOUT_AUTO").markDirty()
-                dao.update(updated)
-                syncCoordinator.syncContactUpdate(updated.id)
-                Log.d("DialerService", "Timeout automático. Reintentando contacto: ${contact.phoneNumber}")
+            isNoAnswer && !wasManualUserHangup -> {
+                if (contact.attemptCount <= IMMEDIATE_RETRIES) {
+                    // Intento 1 sin respuesta: volver a llamar al MISMO contacto
+                    val updated = baseUpdatedContact.copy(status = ContactStatus.PENDING.name, lastOutcome = "NO_ANSWER_REDIAL").markDirty()
+                    dao.update(updated)
+                    syncCoordinator.syncContactUpdate(updated.id)
+                    Log.d("DialerService", "Intento ${contact.attemptCount} sin respuesta. Reintentando mismo contacto: ${contact.phoneNumber}")
+                } else {
+                    // Intento 2 sin respuesta: reprogramar y mostrar aviso con hora
+                    val calendar = java.util.Calendar.getInstance().apply {
+                        add(java.util.Calendar.DAY_OF_YEAR, 1)
+                        set(java.util.Calendar.HOUR_OF_DAY, settings.retryHour)
+                        set(java.util.Calendar.MINUTE, settings.retryMinute)
+                        set(java.util.Calendar.SECOND, 0)
+                        set(java.util.Calendar.MILLISECOND, 0)
+                    }
+                    val triggerAt = calendar.timeInMillis
+                    val timeFormat = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
+                    val scheduledTimeStr = timeFormat.format(calendar.time)
+
+                    val updated = baseUpdatedContact.copy(
+                        status = ContactStatus.SCHEDULED_RETRY.name,
+                        attemptCount = 0,
+                        retryRound = contact.retryRound + 1,
+                        nextAttemptAt = triggerAt,
+                        lastOutcome = "NO_ANSWER_AUTO_SCHEDULED"
+                    ).markDirty()
+                    dao.update(updated)
+                    syncCoordinator.syncContactUpdate(updated.id)
+
+                    val opId = "retry_${contact.id}_$triggerAt"
+                    val agendaItem = com.tuempresa.autodialer.data.AgendaItemEntity(
+                        type = com.tuempresa.autodialer.data.AgendaItemType.FOLDER_RETRY,
+                        contactId = contact.id,
+                        folderId = contact.importBatchId,
+                        scheduledAt = triggerAt,
+                        reason = "Sin respuesta (Intento ${contact.attemptCount})",
+                        operationId = opId
+                    )
+                    db.agendaItemDao().insert(agendaItem)
+                    com.tuempresa.autodialer.scheduling.RetryScheduler.scheduleExactAlarm(this, contact.id, triggerAt)
+
+                    val noticeText = "Sin respuesta. Reprogramada para las $scheduledTimeStr"
+                    updateNotification(noticeText)
+                    DialerEvents.emit(DialerEvent.ShowNoAnswerNotice(contact.phoneNumber, noticeText))
+                    delay(3000)
+                }
             }
             else -> {
                 // Si fue manual, o si ya agotó intentos
                 if (contact.attemptCount < settings.maxAttemptsPerContact) {
-                    // Fue manual (no timeout) pero tiene intentos. 
-                    // No ponemos en PENDING. Pedimos resultado (pudiendo elegir "Reintentar luego")
                     val updated = baseUpdatedContact.copy(status = ContactStatus.AWAITING_OUTCOME.name, lastOutcome = outcome.name).markDirty()
                     dao.update(updated)
                     syncCoordinator.syncContactUpdate(updated.id)
                     DialerEvents.emit(DialerEvent.NeedsOutcomeChoice(contact.id, contact.phoneNumber, contact.businessName))
                     DialerEvents.awaitResolution(contact.id)
                 } else {
-                    // Agotó intentos por hoy
                     if (contact.retryRound >= settings.maxRetryDays) {
-                        // RF-5: Tras el límite de días, se aplica un resultado final configurable
                         val finalStatus = settings.finalOutcomeStatus
                         val updated = baseUpdatedContact.copy(status = finalStatus, lastOutcome = outcome.name).markDirty()
                         dao.update(updated)
                         syncCoordinator.syncContactUpdate(updated.id)
                         DialerEvents.emit(DialerEvent.ContactDiscarded(contact.phoneNumber, contact.businessName))
                     } else {
-                        if (settings.autoSchedulingEnabled) {
-                            autoScheduleNextDay(baseUpdatedContact, outcome)
-                        } else {
-                            val updated = baseUpdatedContact.copy(status = ContactStatus.AWAITING_RETRY_TIME.name, lastOutcome = outcome.name).markDirty()
-                            dao.update(updated)
-                            syncCoordinator.syncContactUpdate(updated.id)
-                            DialerEvents.emit(DialerEvent.NeedsRetryTimeChoice(contact.id, contact.phoneNumber))
-                            DialerEvents.awaitResolution(contact.id)
-                        }
+                        autoScheduleNextDay(baseUpdatedContact, outcome)
                     }
                 }
             }
@@ -576,6 +603,8 @@ class DialerService : Service() {
     }
 
     companion object {
+        const val DIAL_TIMEOUT_SECONDS = 20
+        const val IMMEDIATE_RETRIES = 1
         const val ACTION_START = "com.tuempresa.autodialer.action.START"
         const val ACTION_STOP = "com.tuempresa.autodialer.action.STOP"
         const val ACTION_PAUSE = "com.tuempresa.autodialer.action.PAUSE"

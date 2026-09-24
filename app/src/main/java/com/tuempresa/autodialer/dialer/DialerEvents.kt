@@ -20,6 +20,7 @@ sealed class DialerEvent {
     data class NeedsOutcomeChoice(val contactId: Long, val phoneNumber: String, val businessName: String) : DialerEvent()
     data class NeedsAltNumberChoice(val contactId: Long, val altNumber: String, val businessName: String) : DialerEvent()
     data class NeedsRetryTimeChoice(val contactId: Long, val phoneNumber: String) : DialerEvent()
+    data class ShowNoAnswerNotice(val phoneNumber: String, val notice: String) : DialerEvent()
     data class ContactDiscarded(val phoneNumber: String, val businessName: String) : DialerEvent()
     data class DailyQuotaReached(val countToday: Int, val maxPerDay: Int) : DialerEvent()
     object CallEnded : DialerEvent()

@@ -658,6 +658,7 @@ class MainActivity : AppCompatActivity() {
                 DialerEvents.events.collect { event ->
                     when (event) {
                         is DialerEvent.NeedsRetryTimeChoice -> showRetryTimePicker(event.contactId, event.phoneNumber)
+                        is DialerEvent.ShowNoAnswerNotice -> Toast.makeText(this@MainActivity, event.notice, Toast.LENGTH_LONG).show()
                         is DialerEvent.QueueFinished -> {
                             isDialingState.value = false
                             isPausedState.value = false
