@@ -240,7 +240,7 @@ class SyncEngine(private val context: Context) {
             for (doc in remoteFolders.documents) {
                 if (!currentCoroutineContext().isActive) break
                 val remoteLastUpdated = doc.getLong("lastUpdated") ?: 0L
-                val folderId = doc.id.toLong()
+                val folderId = doc.id.toLongOrNull() ?: continue
                 
                 val folder = BatchEntity(
                     id = folderId,
@@ -254,7 +254,7 @@ class SyncEngine(private val context: Context) {
             }
 
             val allFoldersDocs = userRef.collection("folders").get().await()
-            val folders = allFoldersDocs.documents.map { it.id.toLong() }
+            val folders = allFoldersDocs.documents.mapNotNull { it.id.toLongOrNull() }
 
             coroutineScope {
                 folders.forEach { folderId ->
@@ -285,7 +285,7 @@ class SyncEngine(private val context: Context) {
             db.withTransaction {
                 for (doc in remoteContacts.documents) {
                     val remoteLastUpdated = doc.getLong("lastUpdated") ?: 0L
-                    val contactId = doc.id.toLong()
+                    val contactId = doc.id.toLongOrNull() ?: continue
                     
                     val contact = ContactEntity(
                         id = contactId,
@@ -342,8 +342,9 @@ class SyncEngine(private val context: Context) {
             
             db.withTransaction {
                 for (doc in remote.documents) {
+                    val attemptId = doc.id.toLongOrNull() ?: continue
                     val attempt = CallAttemptEntity(
-                        id = doc.id.toLong(),
+                        id = attemptId,
                         contactId = doc.getLong("contactId") ?: 0L,
                         timestampMillis = doc.getLong("timestampMillis") ?: 0L,
                         durationMillis = doc.getLong("durationMillis") ?: 0L,
@@ -377,8 +378,9 @@ class SyncEngine(private val context: Context) {
             
             db.withTransaction {
                 for (doc in remote.documents) {
+                    val itemId = doc.id.toLongOrNull() ?: continue
                     val item = AgendaItemEntity(
-                        id = doc.id.toLong(),
+                        id = itemId,
                         type = AgendaItemType.valueOf(doc.getString("type") ?: AgendaItemType.PERSONAL_REMINDER.name),
                         contactId = doc.getLong("contactId") ?: -1L,
                         folderId = doc.getLong("folderId") ?: -1L,
