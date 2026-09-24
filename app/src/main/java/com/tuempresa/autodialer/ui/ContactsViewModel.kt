@@ -265,6 +265,10 @@ class ContactsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteBatch(batchId: Long) {
         viewModelScope.launch(Dispatchers.IO) { 
+            val contactsInBatch = dao.getContactsInBatch(batchId)
+            contactsInBatch.forEach { contact ->
+                RetryScheduler.cancel(getApplication(), contact.id)
+            }
             dao.deleteBatch(batchId)
             // Soft delete para sync
             db.batchDao().softDelete(batchId, System.currentTimeMillis())
