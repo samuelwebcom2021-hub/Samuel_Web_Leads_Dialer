@@ -71,7 +71,7 @@ object ContactMapper {
         
         val hasPlus = trimmed.startsWith("+")
         val cleaned = trimmed.replace(Regex("[^0-9]"), "")
-        if (cleaned.isBlank()) return null
+        if (cleaned.length < 7) return null
         
         val purePrefix = countryPrefix.replace(Regex("[^0-9]"), "") // ej: "57"
         
