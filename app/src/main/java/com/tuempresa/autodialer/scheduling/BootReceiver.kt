@@ -31,9 +31,17 @@ class BootReceiver : BroadcastReceiver() {
             
             // 1. Reprogramar reintentos automáticos de carpeta (RetryScheduler)
             if (!app.settingsState.value.isVacationModeActive) {
+                var expiredOffsetCount = 0
                 db.contactDao().getAllScheduledRetries().forEach { contact ->
                     val triggerAt = contact.nextAttemptAt ?: return@forEach
-                    val targetTime = if (triggerAt > now) triggerAt else now + 60000L // Si venció mientras estuvo apagado, disparar en 1 min
+                    val targetTime = if (triggerAt > now) {
+                        triggerAt
+                    } else {
+                        // Escalonar los reintentos vencidos: 1 min para el primero, +30s para cada siguiente
+                        val offsetMs = 60000L + (expiredOffsetCount * 30000L)
+                        expiredOffsetCount++
+                        now + offsetMs
+                    }
                     if (triggerAt <= now) {
                         db.contactDao().update(contact.copy(nextAttemptAt = targetTime))
                     }

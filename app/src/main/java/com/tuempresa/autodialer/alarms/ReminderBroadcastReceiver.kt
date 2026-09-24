@@ -40,27 +40,28 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
 
     private fun showNotification(context: Context, agendaId: Long, title: String, description: String) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val safeBaseCode = (agendaId.hashCode() and 0x0FFF) * 10
         
         // Acción: DETENER
         val stopIntent = Intent(context, ReminderActionReceiver::class.java).apply {
             action = ReminderActionReceiver.ACTION_STOP
             putExtra(ReminderActionReceiver.EXTRA_AGENDA_ID, agendaId)
         }
-        val stopPending = PendingIntent.getBroadcast(context, agendaId.toInt() + 100, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val stopPending = PendingIntent.getBroadcast(context, safeBaseCode + 1, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
         // Acción: SNOOZE
         val snoozeIntent = Intent(context, ReminderActionReceiver::class.java).apply {
             action = ReminderActionReceiver.ACTION_SNOOZE
             putExtra(ReminderActionReceiver.EXTRA_AGENDA_ID, agendaId)
         }
-        val snoozePending = PendingIntent.getBroadcast(context, agendaId.toInt() + 200, snoozeIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val snoozePending = PendingIntent.getBroadcast(context, safeBaseCode + 2, snoozeIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
         // Acción: LLAMAR
         val callIntent = Intent(context, ReminderActionReceiver::class.java).apply {
             action = ReminderActionReceiver.ACTION_CALL
             putExtra(ReminderActionReceiver.EXTRA_AGENDA_ID, agendaId)
         }
-        val callPending = PendingIntent.getBroadcast(context, agendaId.toInt() + 300, callIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val callPending = PendingIntent.getBroadcast(context, safeBaseCode + 3, callIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
         // PendingIntent para Full Screen (Nueva Activity interactiva)
         val fullScreenIntent = Intent(context, AlarmFullScreenActivity::class.java).apply {
@@ -69,7 +70,7 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
             putExtra("reason", description)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION
         }
-        val fullScreenPending = PendingIntent.getActivity(context, agendaId.toInt() + 400, fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val fullScreenPending = PendingIntent.getActivity(context, safeBaseCode + 4, fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
         val notification = NotificationCompat.Builder(context, App.ALARM_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_tab_scheduled)
@@ -86,6 +87,6 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
             .setAutoCancel(false)
             .build()
 
-        manager.notify(agendaId.toInt(), notification)
+        manager.notify(safeBaseCode, notification)
     }
 }
