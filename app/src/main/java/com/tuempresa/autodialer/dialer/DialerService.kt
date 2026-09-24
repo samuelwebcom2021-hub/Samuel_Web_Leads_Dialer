@@ -423,18 +423,18 @@ class DialerService : Service() {
             notes = lastNotes
         )
 
-        val isNoAnswer = wasTimeout || outcome == CallOutcome.NO_ANSWER_OR_VOICEMAIL || lastResult == CallResult.NO_ANSWER
-        val wasManualUserHangup = lastResult == CallResult.REJECTED || lastResult == CallResult.BUSY
+        val isUserAnswerOrManual = outcome == CallOutcome.ANSWERED || lastResult == CallResult.ANSWERED
+        val isTrueNoAnswer = (wasTimeout || outcome == CallOutcome.NO_ANSWER_OR_VOICEMAIL) && !isUserAnswerOrManual
 
         when {
-            outcome == CallOutcome.ANSWERED -> {
-                val updated = baseUpdatedContact.copy(status = ContactStatus.AWAITING_OUTCOME.name, lastOutcome = outcome.name).markDirty()
+            isUserAnswerOrManual -> {
+                val updated = baseUpdatedContact.copy(status = ContactStatus.AWAITING_OUTCOME.name, lastOutcome = CallResult.ANSWERED.name).markDirty()
                 dao.update(updated)
                 syncCoordinator.syncContactUpdate(updated.id)
                 DialerEvents.emit(DialerEvent.NeedsOutcomeChoice(contact.id, contact.phoneNumber, contact.businessName))
                 DialerEvents.awaitResolution(contact.id)
             }
-            isNoAnswer && !wasManualUserHangup -> {
+            isTrueNoAnswer -> {
                 if (contact.attemptCount <= IMMEDIATE_RETRIES) {
                     // Intento 1 sin respuesta: volver a llamar al MISMO contacto
                     val updated = baseUpdatedContact.copy(status = ContactStatus.PENDING.name, lastOutcome = "NO_ANSWER_REDIAL").markDirty()

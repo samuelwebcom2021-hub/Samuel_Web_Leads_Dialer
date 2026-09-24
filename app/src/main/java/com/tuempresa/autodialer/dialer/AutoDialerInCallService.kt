@@ -221,7 +221,7 @@ class AutoDialerInCallService : InCallService() {
             DisconnectCause.BUSY -> CallResult.BUSY
             DisconnectCause.REJECTED -> CallResult.REJECTED
             DisconnectCause.REMOTE -> CallResult.ANSWERED
-            DisconnectCause.LOCAL -> CallResult.NO_ANSWER
+            DisconnectCause.LOCAL -> CallResult.ANSWERED // El usuario o la app finalizaron la llamada en pantalla
             DisconnectCause.MISSED -> CallResult.NO_ANSWER
             DisconnectCause.ERROR -> CallResult.FAILED
             else -> CallResult.NO_ANSWER
