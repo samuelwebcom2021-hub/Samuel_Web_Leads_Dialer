@@ -33,9 +33,11 @@ class BootReceiver : BroadcastReceiver() {
             if (!app.settingsState.value.isVacationModeActive) {
                 db.contactDao().getAllScheduledRetries().forEach { contact ->
                     val triggerAt = contact.nextAttemptAt ?: return@forEach
-                    if (triggerAt > now) {
-                        RetryScheduler.scheduleExactAlarm(context, contact.id, triggerAt)
+                    val targetTime = if (triggerAt > now) triggerAt else now + 60000L // Si venció mientras estuvo apagado, disparar en 1 min
+                    if (triggerAt <= now) {
+                        db.contactDao().update(contact.copy(nextAttemptAt = targetTime))
                     }
+                    RetryScheduler.scheduleExactAlarm(context, contact.id, targetTime)
                 }
             }
             
