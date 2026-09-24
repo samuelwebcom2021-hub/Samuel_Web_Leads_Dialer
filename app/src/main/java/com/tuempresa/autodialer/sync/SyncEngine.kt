@@ -240,7 +240,11 @@ class SyncEngine(private val context: Context) {
             for (doc in remoteFolders.documents) {
                 if (!currentCoroutineContext().isActive) break
                 val remoteLastUpdated = doc.getLong("lastUpdated") ?: 0L
-                val folderId = doc.id.toLongOrNull() ?: continue
+                val folderId = doc.id.toLongOrNull()
+                if (folderId == null) {
+                    Log.w("SyncEngine", "Documento ignorado por ID no numérico en colección 'folders': ${doc.id}")
+                    continue
+                }
                 
                 val folder = BatchEntity(
                     id = folderId,
@@ -254,7 +258,13 @@ class SyncEngine(private val context: Context) {
             }
 
             val allFoldersDocs = userRef.collection("folders").get().await()
-            val folders = allFoldersDocs.documents.mapNotNull { it.id.toLongOrNull() }
+            val folders = allFoldersDocs.documents.mapNotNull { doc ->
+                val id = doc.id.toLongOrNull()
+                if (id == null) {
+                    Log.w("SyncEngine", "ID no numérico omitido al listar carpetas: ${doc.id}")
+                }
+                id
+            }
 
             coroutineScope {
                 folders.forEach { folderId ->
@@ -285,7 +295,11 @@ class SyncEngine(private val context: Context) {
             db.withTransaction {
                 for (doc in remoteContacts.documents) {
                     val remoteLastUpdated = doc.getLong("lastUpdated") ?: 0L
-                    val contactId = doc.id.toLongOrNull() ?: continue
+                    val contactId = doc.id.toLongOrNull()
+                    if (contactId == null) {
+                        Log.w("SyncEngine", "Documento ignorado por ID no numérico en 'contacts': ${doc.id}")
+                        continue
+                    }
                     
                     val contact = ContactEntity(
                         id = contactId,
@@ -342,7 +356,11 @@ class SyncEngine(private val context: Context) {
             
             db.withTransaction {
                 for (doc in remote.documents) {
-                    val attemptId = doc.id.toLongOrNull() ?: continue
+                    val attemptId = doc.id.toLongOrNull()
+                    if (attemptId == null) {
+                        Log.w("SyncEngine", "Documento ignorado por ID no numérico en 'call_attempts': ${doc.id}")
+                        continue
+                    }
                     val attempt = CallAttemptEntity(
                         id = attemptId,
                         contactId = doc.getLong("contactId") ?: 0L,
@@ -378,7 +396,11 @@ class SyncEngine(private val context: Context) {
             
             db.withTransaction {
                 for (doc in remote.documents) {
-                    val itemId = doc.id.toLongOrNull() ?: continue
+                    val itemId = doc.id.toLongOrNull()
+                    if (itemId == null) {
+                        Log.w("SyncEngine", "Documento ignorado por ID no numérico en 'agenda_items': ${doc.id}")
+                        continue
+                    }
                     val item = AgendaItemEntity(
                         id = itemId,
                         type = AgendaItemType.valueOf(doc.getString("type") ?: AgendaItemType.PERSONAL_REMINDER.name),
